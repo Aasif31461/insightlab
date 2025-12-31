@@ -13,7 +13,7 @@ from modules.ml_studio import render_ml_studio
 from modules.conclusion import render_conclusion
 from modules.model_runner import render_model_runner
 from modules.smart_tools import render_smart_tools
-from utils.session_helper import load_session, save_session, clear_session
+from utils.session_helper import load_session_from_bytes, get_session_as_bytes, clear_session
 
 # --- Page Config ---
 st.set_page_config(
@@ -22,11 +22,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# --- Auto-Load Session ---
-if 'check_load' not in st.session_state:
-    load_session()
-    st.session_state.check_load = True
 
 # --- Custom Styling ---
 st.markdown("""
@@ -95,7 +90,33 @@ with st.sidebar:
         st.info("👆 Please upload a dataset to begin.")
 
     st.divider()
-    if st.button("🔴 Reset App (Clear Cache)", help="Deletes all data, session history, and temporary files."):
+    
+    # --- Session Manager ---
+    with st.expander("💾 Session Manager"):
+        st.caption("Save your progress to return later.")
+        
+        # Download
+        session_data = get_session_as_bytes()
+        if session_data:
+            st.download_button(
+                label="Download Session",
+                data=session_data,
+                file_name="insightlab_session.pkl",
+                mime="application/octet-stream",
+                help="Download your current work as a file."
+            )
+            
+        # Upload
+        uploaded_session = st.file_uploader("Restore Session", type=["pkl"], label_visibility="collapsed")
+        if uploaded_session:
+            if st.button("Load Session Data"):
+                if load_session_from_bytes(uploaded_session):
+                    st.success("Session loaded!")
+                    time.sleep(0.5)
+                    st.rerun()
+
+    st.divider()
+    if st.button("🔴 Reset App", help="Deletes all data and resets the app."):
         clear_session()
 
     # --- Versioning Sidebar ---
@@ -140,9 +161,6 @@ try:
     
     elif final_selection == PAGES["Conclusion"]:
         render_conclusion()
-        
-    # Auto-save at end of script execution
-    save_session()
 
 except Exception as e:
     import traceback
